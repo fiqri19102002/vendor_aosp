@@ -36,6 +36,7 @@
         <component class=".update.OtaSuggestionSummaryProvider" enabled="false" />
         <component class=".update.phone.PopupDialog" enabled="false" />
         <component class=".update.SystemUpdateActivity" enabled="false" />
+        <component class=".update.SystemUpdateV2Activity" enabled="false" />
         <component class=".update.SystemUpdateGcmTaskService" enabled="false" />
         <component class=".update.SystemUpdatePersistentListenerService" enabled="false" />
         <component class=".update.SystemUpdateService" enabled="false" />
