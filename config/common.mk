@@ -30,10 +30,6 @@ endif
 PRODUCT_SYSTEM_DEFAULT_PROPERTIES += persist.sys.strictmode.disable=true
 endif
 
-# Component overrides
-PRODUCT_PACKAGES += \
-    custom-component-overrides.xml
-
 # Backup Tool
 PRODUCT_COPY_FILES += \
     vendor/aosp/prebuilt/common/bin/backuptool.sh:install/bin/backuptool.sh \
