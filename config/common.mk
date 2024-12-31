@@ -4,6 +4,9 @@ $(call inherit-product-if-exists, vendor/extra/product.mk)
 # Google Apps
 $(call inherit-product, vendor/gms/products/gms.mk)
 
+# Pixel Framework
+$(call inherit-product-if-exists, vendor/pixel-framework/config.mk)
+
 PRODUCT_BRAND ?= PixelOS
 
 ifeq ($(PRODUCT_GMS_CLIENTID_BASE),)
