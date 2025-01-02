@@ -7,6 +7,9 @@ $(call inherit-product, vendor/gms/products/gms.mk)
 # Pixel Framework
 $(call inherit-product-if-exists, vendor/pixel-framework/config.mk)
 
+# PixelLauncher overlays
+$(call inherit-product-if-exists, vendor/google/overlays/ThemeIcons/config.mk)
+
 PRODUCT_BRAND ?= PixelOS
 
 ifeq ($(PRODUCT_GMS_CLIENTID_BASE),)
