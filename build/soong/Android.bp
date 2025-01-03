@@ -462,6 +462,7 @@ soong_config_module_type {
     bool_variables: ["uses_oplus_camera"],
     properties: ["cppflags"],
 }
+
 uses_oplus_camera {
     name: "uses_oplus_camera_defaults",
     soong_config_variables: {
@@ -485,7 +486,7 @@ uses_nothing_camera {
         uses_nothing_camera: {
             cppflags: ["-DUSES_NOTHING_CAMERA"],
         },
-    }
+    },
 }
 
 soong_config_module_type {
