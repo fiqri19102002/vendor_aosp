@@ -40,6 +40,9 @@
         <component class=".update.SystemUpdateGcmTaskService" enabled="false" />
         <component class=".update.SystemUpdatePersistentListenerService" enabled="false" />
         <component class=".update.SystemUpdateService" enabled="false" />
+        <component class=".update.SystemUpdateService.ActiveReceiver" enabled="false" />
+        <component class=".update.SystemUpdateService.Receiver" enabled="false" />
+        <component class=".update.SystemUpdateService.SecretCodeReceiver" enabled="false" />
     </component-override>
 
     <component-override package="com.google.android.setupwizard">
