@@ -260,6 +260,19 @@ PRODUCT_PACKAGES += \
     libtextclassifier_actions_suggestions_universal_model \
     libtextclassifier_lang_id_model
 
+PRODUCT_ARTIFACT_PATH_REQUIREMENT_ALLOWED_LIST += \
+    system/etc/textclassifier/actions_suggestions.universal.model \
+    system/etc/textclassifier/lang_id.model \
+    system/etc/textclassifier/textclassifier.en.model \
+    system/etc/textclassifier/textclassifier.universal.model
+
+# TFLite service.
+PRODUCT_PACKAGES += libtensorflowlite_jni
+
+PRODUCT_ARTIFACT_PATH_REQUIREMENT_ALLOWED_LIST += \
+    system/lib/libtensorflowlite_jni.so \
+    system/lib64/libtensorflowlite_jni.so
+
 # Translations
 CUSTOM_LOCALES += \
     ast_ES \
