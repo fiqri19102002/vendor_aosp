@@ -1,5 +1,5 @@
 # Copyright (C) 2012 The CyanogenMod Project
-#           (C) 2017-2024 The LineageOS Project
+#           (C) 2017-2025 The LineageOS Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -355,6 +355,7 @@ endef
 # $(5): module load list
 # $(6): suffix for output dir, needed for GKI modules usecase, empty otherwise
 # $(7): partition image intermediates file list
+# $(8): external dependency module intermediates dir
 # Depmod requires a well-formed kernel version so 0.0 is used as a placeholder.
 define build-image-kernel-modules-custom
     mkdir -p $(2)/lib/modules$(6)
@@ -362,7 +363,15 @@ define build-image-kernel-modules-custom
     rm -rf $(4)
     mkdir -p $(4)/lib/modules/0.0/$(3)lib/modules$(6)
     cp $(1) $(4)/lib/modules/0.0/$(3)lib/modules$(6)
-    $(DEPMOD) -b $(4) 0.0
+    if [ -n "$(8)" ]; then cp -r $(8) $(4)/lib/modules/0.0/; fi
+    $(DEPMOD) -ae -F $(KERNEL_OUT)/System.map -b $(4) 0.0 2>$(4)/depmod_stderr
+    cat $(4)/depmod_stderr >&2
+    if { grep -q "needs unknown symbol" $(4)/depmod_stderr; }; then \
+      echo "ERROR: kernel module(s) need unknown symbol(s)" >&2; \
+      rm -f $(4)/depmod_stderr; \
+      exit 1; \
+    fi
+    rm -f $(4)/depmod_stderr
     sed -e 's/\(.*modules.*\):/\/\1:/g' -e 's/ \([^ ]*modules[^ ]*\)/ \/\1/g' $(4)/lib/modules/0.0/modules.dep > $(2)/lib/modules$(6)/modules.dep
     cp $(4)/lib/modules/0.0/modules.softdep $(2)/lib/modules$(6)
     cp $(4)/lib/modules/0.0/modules.alias $(2)/lib/modules$(6)
@@ -375,7 +384,7 @@ define build-image-kernel-modules-custom
             echo "ERROR: $$NAME.ko was not found in the kernel modules intermediates dir, module load list must be corrected" 1>&2 && exit 1; \
         fi; \
     done
-    if [ ! -z "$(7)" ]; then \
+    if [ -n "$(7)" ]; then \
         echo lib/modules$(6)/modules.alias >> "$(7)"; \
         echo lib/modules$(6)/modules.dep >> "$(7)"; \
         if [ ! -z "$(5)" ]; then echo lib/modules$(6)/modules.load >> "$(7)"; fi; \
@@ -491,48 +500,54 @@ $(TARGET_PREBUILT_INT_KERNEL): $(KERNEL_CONFIG) $(DEPMOD) $(DTC) $(KERNEL_MODULE
 			) \
 			kernel_release=$$(cat $(KERNEL_RELEASE)) \
 			kernel_modules_dir=$(MODULES_INTERMEDIATES)/lib/modules/$$kernel_release \
+			all_modules=$$(find $$kernel_modules_dir -type f -name '*.ko') \
 			$(foreach s, $(TARGET_MODULE_ALIASES),\
 				$(eval p := $(subst :,$(space),$(s))) \
-				; mv $$(find $$kernel_modules_dir -name $(word 1,$(p))) $$kernel_modules_dir/$(word 2,$(p))); \
-			dup_modules=$$(find $$kernel_modules_dir -type f -name '*.ko' -printf '%f\n' |sort |uniq -d); \
+				; mv $$(echo $$all_modules | tr ' ' '\n' | grep /$(word 1,$(p))) $$kernel_modules_dir/$(word 2,$(p))); \
+			all_modules=$$(find $$kernel_modules_dir -type f -name '*.ko'); \
+			dup_modules=$$(echo $$all_modules | tr ' ' '\n' | xargs -n1 basename | sort | uniq -d); \
 			$(if $$dup_modules,\
 				err=$$(for m in $$dup_modules; do \
 					echo "ERROR: Duplicate module $$m" 1>&2 && echo "dup"; \
 				done); \
 				[ -n "$$err" ] && exit 1; \
 			) \
-			all_modules=$$(find $$kernel_modules_dir -type f -name '*.ko'); \
 			filtered_modules=""; \
 			$(if $(SYSTEM_KERNEL_MODULES),\
 				gki_modules=$$(for m in $(SYSTEM_KERNEL_MODULES); do \
-					p=$$(find $$kernel_modules_dir -type f -name $$m); \
+					p=$$(echo $$all_modules | tr ' ' '\n' | grep /$$m); \
 					if [ -n "$$p" ]; then echo $$p; else echo "ERROR: $$m from SYSTEM_KERNEL_MODULES was not found" 1>&2 && exit 1; fi; \
 				done); \
 				[ $$? -ne 0 ] && exit 1; \
-				($(call build-image-kernel-modules-custom,$$gki_modules,$(SYSTEM_KERNEL_MODULES_OUT),$(SYSTEM_KERNEL_MODULE_MOUNTPOINT)/,$(SYSTEM_KERNEL_DEPMOD_STAGING_DIR),$(BOARD_SYSTEM_KERNEL_MODULES_LOAD),/$(GKI_SUFFIX),$(SYSTEM_KERNEL_MODULES_PARTITION_FILE_LIST))) || exit "$$?"; \
+				($(call build-image-kernel-modules-custom,$$gki_modules,$(SYSTEM_KERNEL_MODULES_OUT),$(SYSTEM_KERNEL_MODULE_MOUNTPOINT)/,$(SYSTEM_KERNEL_DEPMOD_STAGING_DIR),$(BOARD_SYSTEM_KERNEL_MODULES_LOAD),/$(GKI_SUFFIX),$(SYSTEM_KERNEL_MODULES_PARTITION_FILE_LIST),)) || exit "$$?"; \
 				filtered_modules=$$(for n in $$all_modules; do \
 					module_name=$$(basename $$n); \
 					if [[ ! "$(SYSTEM_KERNEL_MODULES)" =~ "$$module_name" ]]; then echo $$n; fi; \
 				done); \
-				($(call build-image-kernel-modules-custom,$$filtered_modules,$(KERNEL_MODULES_OUT),$(KERNEL_MODULE_MOUNTPOINT)/,$(KERNEL_DEPMOD_STAGING_DIR),$(BOARD_VENDOR_KERNEL_MODULES_LOAD),,$(KERNEL_MODULES_PARTITION_FILE_LIST))) || exit "$$?"; \
+				($(call build-image-kernel-modules-custom,$$filtered_modules,$(KERNEL_MODULES_OUT),$(KERNEL_MODULE_MOUNTPOINT)/,$(KERNEL_DEPMOD_STAGING_DIR),$(BOARD_VENDOR_KERNEL_MODULES_LOAD),,$(KERNEL_MODULES_PARTITION_FILE_LIST),$(SYSTEM_KERNEL_DEPMOD_STAGING_DIR)/lib/modules/0.0/$(SYSTEM_KERNEL_MODULE_MOUNTPOINT))) || exit "$$?"; \
+				(for m in $$(find $(SYSTEM_KERNEL_MODULES_OUT) -type f -name "*.ko"); do \
+					$(KERNEL_OUT)/scripts/sign-file sha1 \
+					$(KERNEL_OUT)/certs/signing_key.pem \
+					$(KERNEL_OUT)/certs/signing_key.x509 "$$m"; \
+				done) || exit "$$?"; \
 				,\
-				($(call build-image-kernel-modules-custom,$$all_modules,$(KERNEL_MODULES_OUT),$(KERNEL_MODULE_MOUNTPOINT)/,$(KERNEL_DEPMOD_STAGING_DIR),$(BOARD_VENDOR_KERNEL_MODULES_LOAD),,$(KERNEL_MODULES_PARTITION_FILE_LIST))) || exit "$$?"; \
+				($(call build-image-kernel-modules-custom,$$all_modules,$(KERNEL_MODULES_OUT),$(KERNEL_MODULE_MOUNTPOINT)/,$(KERNEL_DEPMOD_STAGING_DIR),$(BOARD_VENDOR_KERNEL_MODULES_LOAD),,$(KERNEL_MODULES_PARTITION_FILE_LIST),)) || exit "$$?"; \
 			) \
 			$(if $(BOOT_KERNEL_MODULES),\
 				vendor_boot_modules=$$(for m in $(BOOT_KERNEL_MODULES); do \
-					p=$$(find $$kernel_modules_dir -type f -name $$m); \
+					p=$$(echo $$all_modules | tr ' ' '\n' | grep /$$m); \
 					if [ -n "$$p" ]; then echo $$p; else echo "ERROR: $$m from BOOT_KERNEL_MODULES was not found" 1>&2 && exit 1; fi; \
 				done); \
 				[ $$? -ne 0 ] && exit 1; \
-				($(call build-image-kernel-modules-custom,$$vendor_boot_modules,$(KERNEL_VENDOR_RAMDISK_MODULES_OUT),,$(KERNEL_VENDOR_RAMDISK_DEPMOD_STAGING_DIR),$(KERNEL_VENDOR_RAMDISK_KERNEL_MODULES_LOAD),,)) || exit "$$?"; \
+				($(call build-image-kernel-modules-custom,$$vendor_boot_modules,$(KERNEL_VENDOR_RAMDISK_MODULES_OUT),,$(KERNEL_VENDOR_RAMDISK_DEPMOD_STAGING_DIR),$(KERNEL_VENDOR_RAMDISK_KERNEL_MODULES_LOAD),,,)) || exit "$$?"; \
 			) \
 			$(if $(RECOVERY_KERNEL_MODULES),\
 				recovery_modules=$$(for m in $(RECOVERY_KERNEL_MODULES); do \
-					p=$$(find $$kernel_modules_dir -type f -name $$m); \
+					p=$$(echo $$all_modules | tr ' ' '\n' | grep /$$m); \
 					if [ -n "$$p" ]; then echo $$p; else echo "ERROR: $$m from RECOVERY_KERNEL_MODULES was not found" 1>&2 && exit 1; fi; \
 				done); \
 				[ $$? -ne 0 ] && exit 1; \
-				($(call build-image-kernel-modules-custom,$$recovery_modules,$(KERNEL_RECOVERY_MODULES_OUT),,$(KERNEL_RECOVERY_DEPMOD_STAGING_DIR),$(BOARD_RECOVERY_RAMDISK_KERNEL_MODULES_LOAD),,)) || exit "$$?"; \
+				($(call build-image-kernel-modules-custom,$$recovery_modules,$(KERNEL_RECOVERY_MODULES_OUT),,$(KERNEL_RECOVERY_DEPMOD_STAGING_DIR),$(BOARD_RECOVERY_RAMDISK_KERNEL_MODULES_LOAD),,,)) || exit "$$?"; \
 			) \
 		fi
 
@@ -634,7 +649,7 @@ ifeq ($(BOARD_USES_QCOM_MERGE_DTBS_SCRIPT),true)
 	$(hide) find $(DTBS_BASE) -type f -name "*.dtb*" | xargs rm -f
 	$(hide) find $(DTBS_OUT) -type f -name "*.dtb*" | xargs rm -f
 	mv $(DTB_OUT)/arch/$(KERNEL_ARCH)/boot/dts/vendor/*/*.dtb $(DTB_OUT)/arch/$(KERNEL_ARCH)/boot/dts/vendor/*/*.dtbo $(DTBS_BASE)/
-	PATH=$(abspath $(HOST_OUT_EXECUTABLES)):$${PATH} python3 $(BUILD_TOP)/vendor/aosp/build/tools/merge_dtbs.py $(DTBS_BASE) $(DTB_OUT)/arch/$(KERNEL_ARCH)/boot/dts/vendor/qcom $(DTBS_OUT)
+	PATH=$(abspath $(HOST_OUT_EXECUTABLES)):$${PATH} python3 $(BUILD_TOP)/vendor/aosp/build/tools/merge_dtbs.py --base $(DTBS_BASE) --techpack $(DTB_OUT)/arch/$(KERNEL_ARCH)/boot/dts/vendor/qcom --out $(DTBS_OUT)
 	cat $(shell find $(DTB_OUT)/out -type f -name "${TARGET_MERGE_DTBS_WILDCARD}.dtb" | sort) > $@
 else
 	cat $(shell find $(DTB_OUT)/arch/$(KERNEL_ARCH)/boot/dts -type f -name "*.dtb" | sort) > $@
