@@ -113,7 +113,7 @@ PRODUCT_PRODUCT_PROPERTIES += \
     ro.boot.vendor.overlay.theme=com.android.internal.systemui.navbar.gestural;com.google.android.systemui.gxoverlay
 
 # Include font files
-include vendor/aosp/config/fonts.mk
+include vendor/aosp/fonts/fonts.mk
 
 # Google Photos Pixel Exclusive XML
 PRODUCT_COPY_FILES += \
