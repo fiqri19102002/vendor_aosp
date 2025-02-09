@@ -273,13 +273,6 @@ PRODUCT_ARTIFACT_PATH_REQUIREMENT_ALLOWED_LIST += \
     system/lib/libtensorflowlite_jni.so \
     system/lib64/libtensorflowlite_jni.so
 
-# Translations
-CUSTOM_LOCALES += \
-    ast_ES \
-    gd_GB \
-    cy_GB \
-    fur_IT
-
 include vendor/aosp/config/version.mk
 
 # OTA
