@@ -275,7 +275,7 @@ PRODUCT_ARTIFACT_PATH_REQUIREMENT_ALLOWED_LIST += \
 include vendor/aosp/config/version.mk
 
 # OTA
-$(call inherit-product, vendor/aosp/config/ota.mk)
+include vendor/aosp/config/ota.mk
 
 PRODUCT_COPY_FILES += \
     vendor/aosp/config/permissions/privapp-permissions-custom.xml:$(TARGET_COPY_OUT_SYSTEM_EXT)/etc/permissions/privapp-permissions-custom.xml
