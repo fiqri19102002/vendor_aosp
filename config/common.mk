@@ -113,7 +113,7 @@ PRODUCT_PRODUCT_PROPERTIES += \
     ro.boot.vendor.overlay.theme=com.android.internal.systemui.navbar.gestural;com.google.android.systemui.gxoverlay
 
 # Include font files
-include vendor/aosp/config/fonts.mk
+include vendor/aosp/fonts/fonts.mk
 
 # Google Photos Pixel Exclusive XML
 PRODUCT_COPY_FILES += \
@@ -250,8 +250,7 @@ PRODUCT_PACKAGES += \
     CustomFontPixelLauncherOverlay \
     DocumentsUIOverlay \
     NetworkStackOverlay \
-    NavigationBarNoHintOverlay \
-    ThemedIconsOverlay
+    NavigationBarNoHintOverlay
 
 # TextClassifier
 PRODUCT_PACKAGES += \
@@ -273,16 +272,12 @@ PRODUCT_ARTIFACT_PATH_REQUIREMENT_ALLOWED_LIST += \
     system/lib/libtensorflowlite_jni.so \
     system/lib64/libtensorflowlite_jni.so
 
-# Translations
-CUSTOM_LOCALES += \
-    ast_ES \
-    gd_GB \
-    cy_GB \
-    fur_IT
-
 include vendor/aosp/config/version.mk
 
 # OTA
-$(call inherit-product, vendor/aosp/config/ota.mk)
+include vendor/aosp/config/ota.mk
+
+PRODUCT_COPY_FILES += \
+    vendor/aosp/config/permissions/privapp-permissions-custom.xml:$(TARGET_COPY_OUT_SYSTEM_EXT)/etc/permissions/privapp-permissions-custom.xml
 
 -include $(WORKSPACE)/build_env/image-auto-bits.mk
